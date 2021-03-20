@@ -8,6 +8,9 @@ python3 manage.py migrate
 python3 manage.py createsuperuser
 
 ```
+界面上添加需要交易的交易对
+[![6hRmgs.png](https://z3.ax1x.com/2021/03/20/6hRmgs.png)](https://imgtu.com/i/6hRmgs)
+
 修改spot_grid_web.settings.py 中的 BINANCE_CONFIG 中的对应的key 和secret
 
 python3 manage.py createsuperuser 用于创建后台登录用户
@@ -84,8 +87,12 @@ if_use: 是否启用,
 - 提供web页面进行交易对币种的增加/删除/启用,无需停止程序(2分钟左右即可生效)
 - 运行一份代码即可跑多个交易对的网格
 - 当连续买入而不卖出次数等于最大买入次数时会该币对会停止买入
+- 以定时任务的形式每分钟查询设置的交易对进行运行,目前自测设置10个交易对完整运行一次需要23s左右(hk服务器),交易对过多时建议将60s时间间隔设置更大
 
 # 待解决问题
 - 不同情况买入数量不同未解决,如设置1,2,3 实际买入只会取1或者3
 
 佛系更新,业余选手
+
+linux 运行提示[端口被占用解决方案](https://blog.csdn.net/whdxjbw/article/details/80681191)
+
