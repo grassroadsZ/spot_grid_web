@@ -49,7 +49,7 @@ python3 manage.py createsuperuser
 
 注意linux每次运行前需先在有venv目录的层级执行```source venv/bin/activate```
 
-linux系统运行报如下错误时运行```pip install django==2.1.8``` 然后再次运行即可：
+linux系统运行报如下错误时[解决方案](https://blog.csdn.net/qq_39969226/article/details/92218635)：
 ```shell script
     ...
     raise ImproperlyConfigured('SQLite 3.8.3 or later is required (found %s).' % Database.sqlite_version)
