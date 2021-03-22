@@ -107,7 +107,7 @@ class BinanceAPI(object):
         url = "%s" % (path)
         header = {"X-MBX-APIKEY": self.key}
         return requests.post(url, headers=header, data=query, \
-                             timeout=180, verify=True).json()
+                             timeout=180, verify=True)
 
     def _format(self, price):
         return "{:.8f}".format(price)
