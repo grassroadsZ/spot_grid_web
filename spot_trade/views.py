@@ -3,6 +3,7 @@ import time
 from django import views
 
 from Public_API.binanceAPI import BinanceAPI
+from Utils.Ding_Ding import send_dingding_msg
 
 from Utils.help_func import help_print
 from spot_grid_web.settings import BINANCE_CONFIG
@@ -62,16 +63,24 @@ class SpotTradeView(views.View):
                         help_print(
                             "当前交易对:" + coin_info.coin_type + "连续买入次数已达" + str(current_num) + "次,调整为最低购买量" + str(
                                 quantity))
+                        send_dingding_msg("报警通知:\n" + "当前交易对:" + coin_info.coin_type + "连续买入次数已达" + str(
+                            current_num) + "次,调整为最低购买量" + str(
+                            quantity))
                     else:
                         quantity = self.get_quantity(coin_info)  # 买入量
 
                     if current_num == max_count:
                         help_print("当前交易对:" + coin_info.coin_type + "连续买入次数已达" + str(current_num) + "次,暂停买入")
+                        send_dingding_msg(
+                            "报警通知:\n" + "当前交易对:" + coin_info.coin_type + "连续买入次数已达" + str(current_num) + "次,暂停买入")
                         return
 
                     res = binance_instance.buy_limit(coin_info.coin_type, quantity, buy_price)
 
                     if res.status_code == 200:  # 挂单成功
+                        send_dingding_msg(
+                            "买单通知:\n" + "当前交易对:" + coin_info.coin_type + "买入" + str(quantity) + "个,买入价格是:" + str(
+                                buy_price) + " USDT")
                         self.update_data(coin_info, buy_price, 1, 1)  # 修改买入卖出价格、当前步数,连续买入的次数
                         time.sleep(1)
 
@@ -92,7 +101,10 @@ class SpotTradeView(views.View):
 
                             help_print(coin_info.coin_type + "卖出价为：\n" + str(sell_price) + "\n数量为： " + str(
                                 quantity) + "\n盈利为： " + str(money) + "\n总盈利为： " + str(coin_info.current_income))
-
+                            send_dingding_msg(
+                                "卖单通知:\n" + "当前交易对:" + coin_info.coin_type + "卖出" + str(quantity) + "个,卖出价格是:" + str(
+                                    buy_price) + " USDT" + " 盈利:" + str(money) + "USDT" + "当前总盈利: " + str(
+                                    coin_info.current_income) + "USDT")
                             coin_info.save()
                             time.sleep(1)
             except Exception as e:

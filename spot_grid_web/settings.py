@@ -30,7 +30,7 @@ DEBUG = True
 ALLOWED_HOSTS = []
 
 BINANCE_CONFIG = {
-    "api_key": 'EaeNcQ8UAOPduDT1m4o1m31A4boQh9eVxCflZDmCS29yXW9NPMZ6CDJSl6OXHlIg',
+    "api_key": '',
     "api_secret": '58TssaJ4Gi3kjSXDN87AngSWqpa9mjLMpHh8cY4yWhqxRwrTh9D36AU7ptNpTEfO',
     "recv_window": 5000
 }
