@@ -8,6 +8,10 @@ python3 manage.py migrate
 python3 manage.py createsuperuser
 
 ```
+# 2021-3-22 
+- 删除requirt.txt内错误的包
+- 增加钉钉消息通知,钉钉的token配置在Utils/Ding_Ding.py 的 dingding_token
+
 界面上添加需要交易的交易对
 [![6hRmgs.png](https://z3.ax1x.com/2021/03/20/6hRmgs.png)](https://imgtu.com/i/6hRmgs)
 

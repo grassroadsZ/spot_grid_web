@@ -14,4 +14,3 @@ SQLAlchemy==1.4.0
 sqlparse==0.4.1
 tzlocal==2.1
 urllib3==1.26.3
-django-simpleui
