@@ -1,4 +1,6 @@
-默认运行环境是国外的服务器,默认环境是python(linux自带的是python2)
+# 目前虽然已经在实盘,但是在找时间实现第二版。。。。第二版主要准备增加单币种每日收益及总收益及其他
+
+默认运行环境是国外的服务器,默认环境是python3(linux自带的是python2)
 首次运行
 ```shell script
 pip install -r requirt.txt 
