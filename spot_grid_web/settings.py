@@ -12,8 +12,9 @@ https://docs.djangoproject.com/en/3.1/ref/settings/
 import os
 
 from pathlib import Path
-
+from . import private_settings
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
@@ -29,12 +30,7 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
-BINANCE_CONFIG = {
-    "api_key": '',
-    "api_secret": '58TssaJ4Gi3kjSXDN87AngSWqpa9mjLMpHh8cY4yWhqxRwrTh9D36AU7ptNpTEfO',
-    "recv_window": 5000
-}
-
+BINANCE_CONFIG = private_settings.BINANCE_CONFIG
 
 
 # https://apscheduler.readthedocs.io/en/latest/userguide.html 设置文档
@@ -42,14 +38,14 @@ SCHEDULER_CONFIG = {
     "apscheduler.jobstores.default": {
         "class": "django_apscheduler.jobstores:DjangoJobStore",
     'type': 'sqlalchemy',
-        'url': 'sqlite:///db.sqlite3'
+        'url': 'mysql:///db.sqlite3'
     },
     'apscheduler.executors.processpool': {
         "type": "threadpool",
         'max_workers': '3',
     },
     'apscheduler.job_defaults.coalesce': 'false',
-    'apscheduler.job_defaults.max_instances': '1',
+    'apscheduler.job_defaults.max_instances': '2',
     'apscheduler.timezone': 'Asia/Shanghai',
 }
 
@@ -104,12 +100,7 @@ WSGI_APPLICATION = 'spot_grid_web.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/3.1/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
-}
+DATABASES = private_settings.DATABASES
 
 
 # Password validation
@@ -149,3 +140,4 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/3.1/howto/static-files/
 
 STATIC_URL = '/static/'
+

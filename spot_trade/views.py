@@ -1,13 +1,14 @@
 import time
 
 from django import views
+from django.db import transaction
 
 from Public_API.binanceAPI import BinanceAPI
 from Utils.Ding_Ding import send_dingding_msg
 
 from Utils.help_func import help_print
 from spot_grid_web.settings import BINANCE_CONFIG
-from spot_trade.models import SpotConfigModel
+from spot_trade.models import SpotConfigModel, OrderDetailModels
 
 binance_instance = BinanceAPI(BINANCE_CONFIG.get("api_key"), BINANCE_CONFIG.get("api_secret"))
 
@@ -17,31 +18,22 @@ charge_amount = 0.00075
 
 class SpotTradeView(views.View):
 
-    def get_quantity(self, coin_info_obj, min_quantity=False):
-        '''
-        :param exchange: min_quantity用于控制减仓
-        :return:
-        '''
-
-        quantity_arr = coin_info_obj.quantity.split(",")
-
-        if min_quantity:
-            quantity = quantity_arr[0]
-
-        else:
-            quantity = quantity_arr[-1]
-
-        return float(quantity)
 
     def update_data(self, coin_info_obj, deal_price, step, current_num):
-        coin_info_obj.next_buy_price = round(deal_price * (1 - coin_info_obj.double_throw_ratio / 100),
-                                             coin_info_obj.min_num)
-        coin_info_obj.grid_sell_price = round(deal_price * (1 + coin_info_obj.profit_ratio / 100),
-                                              coin_info_obj.min_num)
-        coin_info_obj.step += step
-        coin_info_obj.current_num += current_num
-        coin_info_obj.current_num = max([0, coin_info_obj.current_num])
-        coin_info_obj.save()
+        # 显式的开启一个事务
+        with transaction.atomic():
+        # 创建事务保存点
+            save_id = transaction.savepoint()
+            coin_info_obj.next_buy_price = round(deal_price * (1 - coin_info_obj.double_throw_ratio / 100),
+                                                 coin_info_obj.min_num)
+            coin_info_obj.grid_sell_price = round(deal_price * (1 + coin_info_obj.profit_ratio / 100),
+                                                  coin_info_obj.min_num)
+            coin_info_obj.step += step
+            coin_info_obj.current_num += current_num
+            coin_info_obj.current_num = max([0, coin_info_obj.current_num])
+            coin_info_obj.save()
+            transaction.savepoint_commit(save_id)
+
 
     def loop_run(self):
         for coin_info in SpotConfigModel.objects.filter(if_use=1):
@@ -49,64 +41,69 @@ class SpotTradeView(views.View):
                 cur_market_price = binance_instance.get_ticker_price(coin_info.coin_type)  # 当前交易对市价
                 buy_price = coin_info.next_buy_price  # 当前网格买入价格
                 sell_price = coin_info.grid_sell_price  # 当前网格卖出价格
-                quantity = self.get_quantity(coin_info)
+
                 step = coin_info.step  # 当前步数
                 current_num = coin_info.current_num  # 当前连续买入次数
-                max_count = coin_info.max_count  # 连续买入而不卖出的最大次数
-                help_print(coin_info.coin_type + " 当前现价为： " + str(cur_market_price) + "\t期望买入价为：" + str(
-                    buy_price) + "\t期望卖出价为：" + str(sell_price) + "\n")
+                max_count = coin_info.max_no_sell_count  # 连续买入而不卖出的最大次数
+                buy_with_no_sell_count_ratio = coin_info.buy_with_no_sell_count_ratio  # 连续买入/最大买入而不卖出的比例
+                quantity = coin_info.quantity  # 买入数量
+                max_no_buy_count = coin_info.max_no_buy_count  # 连续当前价格大于期望买入价格次数的设置值∂
+                max_no_buy_num = coin_info.max_no_buy_num  # 连续当前价格大于期望买入价格次数的设置值∂
+                print(
+                    "当前交易对:" + coin_info.coin_type + str(list([i for i in coin_info])))
+
                 # 设置的买入价 > 当前现货价格
                 if buy_price >= cur_market_price:
-                    # 如果当前次数/最大次数大于40%时，取最小的交易量
-                    if float(current_num / max_count) > 0.4:
-                        quantity = self.get_quantity(coin_info, min_quantity=True)
+                    # 如果当前次数/最大次数大于设置的比例时，取最小的交易量,当前买入次数为0 时也买最少
+                    if float(current_num / max_count) > buy_with_no_sell_count_ratio / 10 or step == 0:
                         help_print(
                             "当前交易对:" + coin_info.coin_type + "连续买入次数已达" + str(current_num) + "次,调整为最低购买量" + str(
                                 quantity))
-                        send_dingding_msg("报警通知:\n" + "当前交易对:" + coin_info.coin_type + "连续买入次数已达" + str(
-                            current_num) + "次,调整为最低购买量" + str(
-                            quantity))
+
+                        quantity = quantity
+
                     else:
-                        quantity = self.get_quantity(coin_info)  # 买入量
+                        quantity *= 2  # 买入量
 
                     if current_num == max_count:
                         help_print("当前交易对:" + coin_info.coin_type + "连续买入次数已达" + str(current_num) + "次,暂停买入")
-                        send_dingding_msg(
-                            "报警通知:\n" + "当前交易对:" + coin_info.coin_type + "连续买入次数已达" + str(current_num) + "次,暂停买入")
                         return
 
-                    res = binance_instance.buy_limit(coin_info.coin_type, quantity, buy_price)
+                    res = binance_instance.buy_limit_msg(coin_info.coin_type, quantity, buy_price)
 
-                    if res.status_code == 200:  # 挂单成功
-                        send_dingding_msg(
-                            "买单通知:\n" + "当前交易对:" + coin_info.coin_type + "买入" + str(quantity) + "个,买入价格是:" + str(
-                                buy_price) + " USDT")
-                        self.update_data(coin_info, buy_price, 1, 1)  # 修改买入卖出价格、当前步数,连续买入的次数
-                        time.sleep(1)
-
+                    if res.get('orderId'):  # 挂单成功
+                        OrderDetailModels.objects.create(coin_type=coin_info.coin_type, buy_sell="buy", price=buy_price)
+                        self.update_data(coin_info, buy_price, 1, 1)  # 修改买入卖出价格、当前步数
                 elif sell_price < cur_market_price:  # 是否满足卖出价
                     if step == 0:  # setp=0 防止踏空，跟随价格上涨
                         self.update_data(coin_info, sell_price, step, 0)
                     else:
-                        res = binance_instance.sell_limit(coin_info.coin_type, self.get_quantity(coin_info, False),
-                                                          sell_price)
-                        if res.status_code == 200:
-                            money = float((1 - charge_amount)) * float(sell_price) * quantity - float((
-                                    1 + charge_amount)) * float(buy_price) * quantity
-                            income = coin_info.current_income
-
-                            coin_info.current_income = money + float(income)
-
+                        quantity = quantity if step < 2 else quantity * 2
+                        res = binance_instance.sell_limit_msg(coin_info.coin_type, quantity, sell_price)
+                        if res.get('orderId'):
+                            # coin_info.current_income = (1 - charge_amount) * sell_price * quantity - (
+                            #         1 + charge_amount) * buy_price * quantity
+                            OrderDetailModels.objects.create(coin_type=coin_info.coin_type, buy_sell="sell",
+                                                             price=buy_price)
                             self.update_data(coin_info, sell_price, - 1, -1)
 
-                            help_print(coin_info.coin_type + "卖出价为：\n" + str(sell_price) + "\n数量为： " + str(
-                                quantity) + "\n盈利为： " + str(money) + "\n总盈利为： " + str(coin_info.current_income))
-                            send_dingding_msg(
-                                "卖单通知:\n" + "当前交易对:" + coin_info.coin_type + "卖出" + str(quantity) + "个,卖出价格是:" + str(
-                                    buy_price) + " USDT" + " 盈利:" + str(money) + "USDT" + "当前总盈利: " + str(
-                                    coin_info.current_income) + "USDT")
-                            coin_info.save()
-                            time.sleep(1)
+                # 现价 > 期望买入价格 且现价 > 期望卖出价格 且 这个次数 > 设定值，就以现价买入
+                if step > 0:
+                    if buy_price < cur_market_price:
+                        # 计数+1
+                        coin_info.max_no_buy_num += 1
+                        coin_info.save()
+
+                        if max_no_buy_count > max_no_buy_num:
+                            res = binance_instance.buy_limit_msg(coin_info.coin_type, quantity, cur_market_price)
+
+                            if res.get('orderId'):  # 挂单成功
+                                OrderDetailModels.objects.create(coin_type=coin_info.coin_type, buy_sell="buy",
+                                                                 price=cur_market_price)
+
+                                self.update_data(coin_info, buy_price, 1, 1)  # 修改买入卖出价格、当前步数
+
+            # transaction.savepoint_commit(save_id)
+
             except Exception as e:
-                print(f"{coin_info.coin_type} 币种运行失败,原因为：{e}")
-                print(f"{coin_info.coin_type} 币种运行失败")
+                print(f"{coin_info.coin_type} 币种运行失败,原因为:{e}")

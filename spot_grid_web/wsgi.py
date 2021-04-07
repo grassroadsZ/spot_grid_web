@@ -22,14 +22,14 @@ from apscheduler.schedulers.background import BackgroundScheduler
 
 
 from tasks import SpotGridViews
-from spot_grid_web import settings
+from spot_grid_web import settings, private_settings
+
 # import logging
 #
 # logging.basicConfig()
 # logging.getLogger('apscheduler').setLevel(logging.DEBUG)
-
 scheduler = BackgroundScheduler(settings.SCHEDULER_CONFIG)
 spot = SpotGridViews()
-scheduler.add_job(spot.spot_start_run, "interval", seconds=60, id="spot_grid_run", replace_existing=True)
+scheduler.add_job(spot.spot_start_run, "interval", seconds=private_settings.interval_time, id="spot_grid_run", replace_existing=True)
 
 scheduler.start()
