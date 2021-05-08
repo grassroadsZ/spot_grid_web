@@ -103,7 +103,7 @@ class SpotTradeView(views.View):
                                 quantity) + "\n盈利为： " + str(money) + "\n总盈利为： " + str(coin_info.current_income))
                             send_dingding_msg(
                                 "卖单通知:\n" + "当前交易对:" + coin_info.coin_type + "卖出" + str(quantity) + "个,卖出价格是:" + str(
-                                    buy_price) + " USDT" + " 盈利:" + str(money) + "USDT" + "当前总盈利: " + str(
+                                    sell_price) + " USDT" + " 盈利:" + str(money) + "USDT" + "当前总盈利: " + str(
                                     coin_info.current_income) + "USDT")
                             coin_info.save()
                             time.sleep(1)
